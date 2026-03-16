@@ -9,210 +9,215 @@
 ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 ```
 
-**AI-powered tech stack analysis and improvement recommendations for any repository.**
+**AI-powered codebase analyzer. Point it at any repo and get a full report on tech stack, security vulnerabilities, deployment gaps, and code complexity — in seconds. No API keys. No setup.**
 
 [![npm version](https://img.shields.io/npm/v/stacked-cli?color=blue&label=npm)](https://www.npmjs.com/package/stacked-cli)
+[![CI](https://github.com/vivaan0001/Stacker/actions/workflows/ci.yml/badge.svg)](https://github.com/vivaan0001/Stacker/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 
 ---
 
-## What is Stacker?
-
-Stacker scans any software repository — local or on GitHub — detects your full tech stack, and delivers AI-powered recommendations for improving it. No API keys. No configuration. Just point it at a repo and get a scored, actionable report in seconds.
-
----
-
-## Features
-
-- **Zero setup** — no API keys required; authentication is handled automatically on first use
-- **Automatic stack detection** — identifies language, frameworks, databases, styling, testing tools, build systems, and package managers
-- **Rule-based engine** — deterministic checks run instantly before any AI call
-- **Dual AI analysis** — two AI models analyze your stack for depth and cross-validation
-- **Scored recommendations** — every suggestion includes a 0–10 score, problem statement, expected outcome, tradeoffs, alternatives, and migration notes
-- **Compare repos** — diff two repos side by side to benchmark stacks against each other
-- **Saveable reports** — export the full analysis as a markdown file
-- **Secure by design** — your source code never leaves your machine; AI requests route through a proxy with no keys stored in the CLI
-- **Response caching** — repeated analysis of unchanged repos skips redundant work
-
----
-
-## Installation
+## Install
 
 ```bash
 npm install -g stacked-cli
 ```
 
-Requires **Node.js 18 or higher**.
-
----
-
-## Quick Start
-
-```bash
-stacker analyze .
-stacker analyze https://github.com/user/repo
-stacker compare ./my-app https://github.com/user/other-app
-```
+That's it. No API keys. No accounts. No config files.
 
 ---
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `stacker analyze [repo]` | Analyze a repo and print recommendations. Defaults to current directory. |
-| `stacker suggest [repo]` | Alias for `analyze`. |
-| `stacker report [repo]` | Run analysis and save the full report to a markdown file. |
-| `stacker compare <repo1> <repo2>` | Compare two repos side by side. Accepts local paths or GitHub URLs. |
-| `stacker config` | Show current configuration (proxy URL, models, timeout). |
-| `stacker cache clear` | Clear all cached analysis data. |
-| `stacker cache status` | Show cache size and entry count. |
-| `stacker login` | Manually trigger authentication. Usually handled automatically on first use. |
-| `stacker logout` | Remove the stored authentication token from your machine. |
+```
+stacker                           Show all commands
+stacker analyze <repo>            Tech stack analysis + AI recommendations
+stacker security <repo>           Security audit — CVEs, secrets, OWASP risks
+stacker deployment <repo>         Deployment recommendations — CI/CD, Docker, cloud
+stacker codebase <repo>           Full analysis — everything combined
+```
+
+`<repo>` can be a GitHub URL or a local path:
+
+```bash
+stacker analyze https://github.com/user/repo
+stacker security ./my-project
+stacker codebase .
+```
 
 ---
 
-## How It Works
+## What it detects
 
-Stacker uses a **proxy architecture** so you never need to manage API keys.
+### `stacker analyze`
+- Full tech stack (language, frameworks, DB, styling, testing, build tools, package manager)
+- Project type (Web App, CLI Tool, VS Code Extension, Claude Code Plugin, etc.)
+- Scored recommendations with problem, outcome, tradeoffs, alternatives, and migration steps
+- Stack strengths
 
-```
-Your Machine                   Proxy (Cloudflare Worker)         AI Providers
-──────────────────             ──────────────────────────        ─────────────
-stacker analyze .  ──────────▶  validate token + rate limit ──▶  Groq
-                               forward structured metadata        OpenAI
-                   ◀──────────  return AI response           ◀──  Anthropic
-```
+### `stacker security`
+- **Real CVE scanning** — runs `npm audit` against actual vulnerability databases
+- **Secret detection** — scans source files for hardcoded API keys, tokens, passwords, private keys
+- **OWASP risk analysis** — XSS sinks, SQL injection patterns, command injection risks, security misconfigurations
+- Security score + AI-synthesized findings
 
-1. **First run** — Stacker auto-registers your machine with the proxy and stores a local token (AES-256-GCM encrypted, machine-bound).
-2. **Analysis** — Stacker walks your repo files, detects the stack, and runs the rule engine for instant findings.
-3. **AI requests** — Only structured metadata and rule findings (never your source code) are sent to `stacker-proxy.ptgeneral.workers.dev`, which forwards to AI providers on your behalf.
-4. **Report** — Results are assembled locally and printed to your terminal or saved to a file.
+### `stacker deployment`
+- CI/CD pipeline gaps
+- Containerization recommendations
+- Cloud provider fit (Vercel, Railway, Fly.io, AWS, etc.)
+- Environment config, health checks, monitoring, secrets management
 
-You never see or manage any AI provider API keys. The CLI contains none.
+### `stacker codebase`
+- Everything above in one report
+- Code complexity metrics — cyclomatic complexity per file, high-risk files flagged
+- Duplication risk assessment
 
 ---
 
-## Example Output
+## Example output
 
 ```
-╔══════════════════════════════════════════════════════════╗
-║                 STACKER ANALYSIS REPORT                  ║
-╚══════════════════════════════════════════════════════════╝
+  Stacker — Stack Analysis Pipeline
 
-  Repository : ./my-nextjs-app
-  Analyzed   : 2024-03-15 14:32:01
+  ✔ Repository resolved: my-app
+  ✔ Static analysis complete  (151 files, 13,843 lines)
+  ✔ Architecture mapped  (Serverless, JAMstack)
+  ✔ Rule engine complete  (0 critical, 0 warnings)
+  ✔ Analysis model complete
+  ✔ Reasoning model complete
 
-────────────────────────────────────────────────────────────
-  DETECTED STACK
-────────────────────────────────────────────────────────────
-  Language      TypeScript
-  Frontend      Next.js 14, React 18
-  Backend       Next.js API Routes
-  Database      PostgreSQL, Prisma ORM
-  Styling       Tailwind CSS
-  Testing       Jest, React Testing Library
-  Build         Turbopack
-  Package Mgr   pnpm
+  ── DETECTED STACK ──────────────────────────────────────
 
-────────────────────────────────────────────────────────────
-  REPO STATS
-────────────────────────────────────────────────────────────
-  Files           142
-  Lines of Code   18,430
-  Components      34
-  API Routes      12
+  Language              TypeScript
+  Project Type          Web App
+  Frontend              React
+  Styling               Tailwind CSS
+  Testing               Vitest
+  Build Tools           Vite
+  Package Manager       bun
 
-────────────────────────────────────────────────────────────
-  STACK SCORES
-────────────────────────────────────────────────────────────
-  Current Score     7.2 / 10
-  Optimized Score   9.1 / 10   (+1.9)
+  ── DEPENDENCY VULNERABILITIES ──────────────────────────
 
-────────────────────────────────────────────────────────────
-  SUGGESTIONS  (3 found)
-────────────────────────────────────────────────────────────
+  7 high  5 moderate  3 low
 
-  [1] Add end-to-end testing  ▲ HIGH IMPACT
-  ──────────────────────────────────────────────
-  Problem       No E2E tests detected. Unit tests alone won't catch
-                integration failures across pages and API routes.
-  Outcome       Catch regressions before they reach production.
-  Tradeoffs     Adds CI time; requires maintaining test scenarios.
-  Alternatives  Playwright (recommended), Cypress
-  Getting started:
-                pnpm add -D @playwright/test
-                npx playwright install
-                npx playwright test
+  • @remix-run/router  high   React Router vulnerable to XSS via Open Redirects
+  • esbuild            moderate  dev server exposes requests to any origin
+  • flatted            high   unbounded recursion DoS in parse()
+  ... and 7 more
 
-  [2] Add error monitoring  ▲ MEDIUM IMPACT
-  ──────────────────────────────────────────────
-  Problem       No error tracking integration detected.
-  Outcome       Catch and triage production errors in real time.
-  Tradeoffs     Minor bundle size increase; requires account setup.
-  Alternatives  Sentry (recommended), Highlight.io, Axiom
-  ...
+  ── SECRETS FOUND ───────────────────────────────────────
 
-────────────────────────────────────────────────────────────
-  STACK STRENGTHS
-────────────────────────────────────────────────────────────
-  ✔  TypeScript strict mode enabled
-  ✔  Modern package manager (pnpm)
-  ✔  ORM layer prevents raw SQL injection surface
-  ✔  Tailwind eliminates dead CSS at build time
+  ⚠ 3 potential secrets detected
 
-────────────────────────────────────────────────────────────
-  AI SUMMARY
-────────────────────────────────────────────────────────────
-  Your stack is modern and well-chosen. The main gaps are test
-  coverage depth and observability tooling. Adding E2E tests and
-  an error tracking integration would bring this stack to
-  production-grade reliability.
+  • src/components/ui/chart.tsx:70  —  dangerouslySetInnerHTML
+  • src/pages/BlogPost.tsx:73       —  dangerouslySetInnerHTML
+  • src/pages/BlogPost.tsx:81       —  dangerouslySetInnerHTML
+
+  ── CODE COMPLEXITY ─────────────────────────────────────
+
+  Average complexity    11.1
+  Max complexity        92
+  Total functions       854
+  Avg lines/function    16
+  Duplication risk      high
+
+  High complexity files:
+    • src/pages/Search.tsx    complexity: 92
+    • src/pages/Submit.tsx    complexity: 86
+    • src/lib/blogPosts.ts    complexity: 85
+
+  ── STACK SCORES ────────────────────────────────────────
+
+  Overall               8.0/10  →  9.0/10  +1.0  ████████░░
+  Performance           8.0/10  →  9.0/10  +1.0  ████████░░
+  Developer Experience  9.0/10  →  9.0/10   0    █████████░
+  Maintainability       8.0/10  →  9.0/10  +1.0  ████████░░
+  Scalability           7.0/10  →  8.0/10  +1.0  ███████░░░
+
+  ── STACK STRENGTHS ─────────────────────────────────────
+
+  ✓ Well-structured React codebase
+  ✓ Error monitoring with @sentry/react
+  ✓ Type safety with TypeScript
+  ✓ Accessible UI with Radix components
+```
+
+---
+
+## How it works
+
+Your source code never leaves your machine. Stacker only sends structured metadata (detected stack, file counts, rule findings) to an AI proxy — never raw source files.
+
+```
+Your Machine              Proxy (Cloudflare Worker)        AI Providers
+─────────────             ─────────────────────────        ────────────
+stacker analyze .  ──▶   validate token + rate limit  ──▶  Groq / OpenAI
+                          forward structured metadata
+                   ◀──   return AI recommendations    ◀──
+```
+
+On first use, Stacker silently registers your machine and stores an AES-256-GCM encrypted token locally. No sign-up required.
+
+---
+
+## Options
+
+```bash
+--format terminal|json|markdown   Output format (default: terminal)
+--output <file>                   Save report to file
+--skip-ai                         Rule-based analysis only, no AI calls
+--verbose                         Show debug output
+```
+
+```bash
+# Save a full markdown report
+stacker codebase https://github.com/user/repo --output report.md
+
+# Skip AI, just run static rules
+stacker security . --skip-ai
+```
+
+---
+
+## Other commands
+
+```bash
+stacker compare <repo1> <repo2>   Side-by-side stack comparison
+stacker report <repo>             Analyze and save to markdown automatically
+stacker cache clear               Clear cached results
+stacker cache status              Show cache size
+stacker config                    Show current configuration
+stacker login                     Manual authentication
+stacker logout                    Remove stored token
 ```
 
 ---
 
 ## Configuration
 
-Stacker works without any configuration. Override defaults with environment variables if needed.
+No configuration needed. Override with environment variables if required:
 
 | Variable | Description | Default |
 |---|---|---|
-| `STACKER_PROXY_URL` | Override the proxy endpoint URL | `https://stacker-proxy.ptgeneral.workers.dev` |
-| `STACKER_ANALYSIS_MODEL` | AI model used for the analysis pass | Proxy default |
-| `STACKER_REASONING_MODEL` | AI model used for the reasoning pass | Proxy default |
-| `STACKER_TIMEOUT` | Request timeout in milliseconds | `30000` |
-
-Example:
-
-```bash
-STACKER_TIMEOUT=60000 stacker analyze https://github.com/user/large-repo
-```
+| `STACKER_TIMEOUT` | Request timeout (ms) | `30000` |
+| `STACKER_CACHE` | Enable/disable caching | `true` |
+| `STACKER_FORMAT` | Output format | `terminal` |
+| `STACKER_VERBOSE` | Verbose logging | `false` |
 
 ---
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, project structure, and PR guidelines.
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
-For responsible disclosure of security vulnerabilities, see [SECURITY.md](SECURITY.md).
-
----
-
-## Terms of Service
-
-By using Stacker, you agree to the [Terms of Service](TERMS.md).
-
----
+See [SECURITY.md](SECURITY.md) for responsible disclosure.
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
