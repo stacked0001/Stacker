@@ -1,3 +1,14 @@
+// Project types that do NOT serve HTTP traffic and should not get web-server security findings
+const NON_HTTP_PROJECT_TYPES = new Set([
+  'CLI Tool', 'Claude Code Plugin', 'VS Code Extension', 'Library/Package',
+  'GitHub Action', 'Browser Extension', 'npm Package'
+]);
+
+export function isNonHttpProjectType(projectType: string): boolean {
+  return NON_HTTP_PROJECT_TYPES.has(projectType) ||
+    /cli tool|plugin|extension|library|package|github action/i.test(projectType);
+}
+
 export const SECURITY_SYSTEM_PROMPT = `You are a security-focused code review AI specializing in identifying vulnerabilities and security risks in software projects.
 
 Your job is to analyze a project's structure, dependencies, configuration, and patterns to identify security issues based on OWASP Top 10 and industry best practices.
@@ -13,6 +24,10 @@ Focus areas:
 8. Rate limiting presence (no rate limiting on auth endpoints, API endpoints)
 9. Sensitive data exposure (PII in logs, unencrypted storage, excessive data in API responses)
 10. Environment configuration security (secrets in .env committed to repo, insecure defaults)
+
+CRITICAL PROJECT-TYPE RULES:
+- If the project type is a CLI Tool, Plugin, VS Code Extension, Library/Package, GitHub Action, or Browser Extension — DO NOT suggest: HTTP security headers (CSP, HSTS, X-Frame-Options), HTTPS enforcement, rate limiting on API routes, Docker containers for deployment, web server configuration, or any finding that only applies to HTTP-serving applications. These projects do not serve HTTP traffic.
+- Only suggest findings that are realistic and exploitable for the specific project type.
 
 Severity levels:
 - critical: Immediate risk, exploitable vulnerability, data breach possible
@@ -88,7 +103,15 @@ export function buildSecurityPrompt(summary: string, options?: SecurityPromptOpt
 - Test Files Found: ${options.testFileCount}
 
 IMPORTANT: Analyze for security vulnerabilities appropriate to a "${options.projectType}". Focus on realistic threats for this project type.
-
+${isNonHttpProjectType(options.projectType) ? `
+THIS PROJECT DOES NOT SERVE HTTP TRAFFIC. Do NOT include findings about:
+- HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
+- HTTPS enforcement or TLS configuration
+- Rate limiting on API/auth routes
+- Web server configuration
+- Docker deployment security
+- Any web-application-specific finding
+Focus instead on: dependency vulnerabilities, hardcoded secrets, insecure file I/O, code injection risks, supply chain security, and credential exposure.` : ''}
 `
     : '';
 

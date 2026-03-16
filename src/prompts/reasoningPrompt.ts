@@ -61,7 +61,13 @@ Schema:
   "summary": string
 }
 
-All scores are out of 10. A project with a well-chosen, intentional stack that fits its purpose should score 7-9. Only score below 6 if there are genuine, serious architectural problems. Be honest and fair.`;
+All scores are out of 10. A project with a well-chosen, intentional stack that fits its purpose should score 7-9. Only score below 6 if there are genuine, serious architectural problems. Be honest and fair.
+
+SCORE CONSTRAINTS (enforced):
+- "optimized" scores must ALWAYS be >= "current" scores in every dimension. Never let optimized be lower than current.
+- If you have no suggestions, set optimized === current for all dimensions.
+- Do NOT give every dimension the same score — differentiate based on actual stack strengths and weaknesses. For example, a project with great DX but poor scalability should reflect that contrast.
+- The "overall" score should reflect the weighted average of the other dimensions.`;
 
 export interface ReasoningPromptOptions {
   projectContext?: string;

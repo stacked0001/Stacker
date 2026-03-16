@@ -89,7 +89,7 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
     step++;
 
     const [stats, stack] = await Promise.all([
-      analyzeRepository(repoPath),
+      analyzeRepository(repoPath, { skipAudit: config.skipAI }),
       Promise.resolve(detectStack(repoPath))
     ]);
 

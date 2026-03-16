@@ -1,3 +1,14 @@
+// Project types where containerization/server deployment is not applicable
+const NON_SERVER_PROJECT_TYPES = new Set([
+  'CLI Tool', 'Claude Code Plugin', 'VS Code Extension', 'Library/Package',
+  'GitHub Action', 'Browser Extension', 'npm Package'
+]);
+
+export function isNonServerProjectType(projectType: string): boolean {
+  return NON_SERVER_PROJECT_TYPES.has(projectType) ||
+    /cli tool|plugin|extension|library|package|github action/i.test(projectType);
+}
+
 export const DEPLOYMENT_SYSTEM_PROMPT = `You are a DevOps and deployment expert specializing in production readiness, CI/CD pipelines, and cloud infrastructure.
 
 Your job is to analyze a project's structure and provide actionable deployment recommendations tailored to the project type and scale.
@@ -13,6 +24,13 @@ Focus areas:
 8. Secrets management in deployment (environment variables, secrets managers, vault, no secrets in images)
 9. CDN and edge deployment (static asset optimization, edge functions, geographic distribution)
 10. Database deployment considerations (migrations, backups, connection pooling, read replicas)
+
+CRITICAL PROJECT-TYPE RULES:
+- If the project type is a CLI Tool, Plugin, VS Code Extension, Library/Package, or GitHub Action — DO NOT suggest: Docker containerization, server hosting platforms (Vercel, Railway, Fly.io), health check endpoints, CDN setup, or horizontal scaling. These projects are not deployed as servers.
+- For CLI tools and libraries: deployment means npm publish, versioning strategy, changelog automation, and CI for testing across Node versions.
+- For VS Code Extensions and Claude Code Plugins: deployment means marketplace publishing, auto-update pipelines, and extension packaging.
+- For GitHub Actions: deployment means action versioning, testing with act, and publishing to the Actions marketplace.
+- Only recommend infrastructure that actually applies to the specific project type.
 
 Priority levels:
 - critical: Must be addressed before going to production
@@ -81,7 +99,14 @@ export function buildDeploymentPrompt(summary: string, options?: DeploymentPromp
 - File Count: ${options.fileCount}
 
 IMPORTANT: Provide deployment recommendations appropriate to a "${options.projectType}" of this scale. Avoid recommending enterprise-level infrastructure for small projects.
-
+${isNonServerProjectType(options.projectType) ? `
+THIS PROJECT IS NOT A SERVER APPLICATION. Do NOT suggest:
+- Docker / containerization
+- Server hosting (Vercel, Railway, Fly.io, Render, AWS EC2/ECS)
+- Health check endpoints
+- CDN setup
+- Horizontal scaling or load balancers
+Instead focus on: CI/CD for testing, npm/marketplace publishing, versioning, automated releases, and dependency management.` : ''}
 `
     : '';
 

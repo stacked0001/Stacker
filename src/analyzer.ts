@@ -123,7 +123,11 @@ function parseNpmAudit(audit: Record<string, unknown>): VulnerabilityStats {
   return result;
 }
 
-export async function analyzeRepository(repoPath: string): Promise<AnalyzerStats> {
+export interface AnalyzeOptions {
+  skipAudit?: boolean;
+}
+
+export async function analyzeRepository(repoPath: string, options: AnalyzeOptions = {}): Promise<AnalyzerStats> {
   const stats: AnalyzerStats = {
     fileCount: 0,
     componentCount: 0,
@@ -138,12 +142,13 @@ export async function analyzeRepository(repoPath: string): Promise<AnalyzerStats
   const scannedFiles: string[] = [];
   walkDirectory(repoPath, stats, 0, scannedFiles);
 
-  // npm audit (Feature 1)
-  if (fs.existsSync(path.join(repoPath, 'package.json'))) {
+  // npm audit (Feature 1) — only if package-lock.json exists and audit not skipped
+  const hasPackageLock = fs.existsSync(path.join(repoPath, 'package-lock.json'));
+  if (!options.skipAudit && hasPackageLock) {
     try {
-      const auditOutput = execSync('npm audit --json', {
+      const auditOutput = execSync('npm audit --json --audit-level=info', {
         cwd: repoPath,
-        timeout: 30000,
+        timeout: 15000,
         stdio: ['pipe', 'pipe', 'pipe']
       }).toString();
       const audit = JSON.parse(auditOutput) as Record<string, unknown>;
@@ -154,7 +159,7 @@ export async function analyzeRepository(repoPath: string): Promise<AnalyzerStats
         const e = err as { stdout?: Buffer | string };
         const audit = JSON.parse((e.stdout?.toString()) ?? '{}') as Record<string, unknown>;
         stats.vulnerabilities = parseNpmAudit(audit);
-      } catch { /* no package-lock, skip */ }
+      } catch { /* parse failed, skip */ }
     }
   }
 

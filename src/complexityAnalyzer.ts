@@ -1,15 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export interface ComplexityMetrics {
-  averageComplexity: number;
-  maxComplexity: number;
-  highComplexityFiles: Array<{ file: string; complexity: number; functions: number }>;
-  totalFunctions: number;
-  linesPerFunction: number;
-  duplicationRisk: 'low' | 'medium' | 'high';
-}
-
 // Decision points that contribute to cyclomatic complexity
 const DECISION_POINT_PATTERN = /\bif\b|\belse\s+if\b|\bfor\b|\bwhile\b|\bdo\b|\bswitch\b|\bcase\b|\bcatch\b|&&|\|\||\?\?|\s\?\s/g;
 
@@ -86,6 +77,22 @@ function collectFiles(dirPath: string, fileList: string[], depth = 0): void {
   }
 }
 
+const isTestFile = (filePath: string): boolean =>
+  /\.(test|spec)\.(ts|js|tsx|jsx)$/.test(filePath) ||
+  /\/__tests__\//.test(filePath) ||
+  /\/test\//.test(filePath) ||
+  /\/tests\//.test(filePath);
+
+export interface ComplexityMetrics {
+  averageComplexity: number;
+  maxComplexity: number;
+  highComplexityFiles: Array<{ file: string; complexity: number; functions: number }>;
+  totalFunctions: number;
+  linesPerFunction: number;
+  duplicationRisk: 'low' | 'medium' | 'high';
+  testFilesExcluded?: number;
+}
+
 export function analyzeComplexity(repoPath: string, fileList: string[]): ComplexityMetrics {
   // If an explicit file list is provided and non-empty, use it; otherwise walk the repo
   let filePaths = fileList.length > 0 ? fileList : [];
@@ -94,13 +101,20 @@ export function analyzeComplexity(repoPath: string, fileList: string[]): Complex
   }
 
   const analyzed: FileComplexity[] = [];
+  const testAnalyzed: FileComplexity[] = [];
 
   for (const filePath of filePaths) {
     const ext = path.extname(filePath).toLowerCase();
     if (!CODE_EXTENSIONS.has(ext)) continue;
 
     const result = analyzeFile(filePath, repoPath);
-    if (result) analyzed.push(result);
+    if (!result) continue;
+
+    if (isTestFile(filePath) || isTestFile(result.file)) {
+      testAnalyzed.push(result);
+    } else {
+      analyzed.push(result);
+    }
   }
 
   if (analyzed.length === 0) {
@@ -110,7 +124,8 @@ export function analyzeComplexity(repoPath: string, fileList: string[]): Complex
       highComplexityFiles: [],
       totalFunctions: 0,
       linesPerFunction: 0,
-      duplicationRisk: 'low'
+      duplicationRisk: 'low',
+      testFilesExcluded: testAnalyzed.length
     };
   }
 
@@ -121,7 +136,7 @@ export function analyzeComplexity(repoPath: string, fileList: string[]): Complex
   const totalLines = analyzed.reduce((sum, f) => sum + f.lines, 0);
   const linesPerFunction = totalFunctions > 0 ? Math.round(totalLines / totalFunctions) : 0;
 
-  // High complexity files: complexity > 15
+  // High complexity files: complexity > 15 (test files excluded)
   const highComplexityFiles = analyzed
     .filter(f => f.complexity > 15)
     .sort((a, b) => b.complexity - a.complexity)
@@ -153,6 +168,7 @@ export function analyzeComplexity(repoPath: string, fileList: string[]): Complex
     highComplexityFiles,
     totalFunctions,
     linesPerFunction,
-    duplicationRisk
+    duplicationRisk,
+    testFilesExcluded: testAnalyzed.length
   };
 }

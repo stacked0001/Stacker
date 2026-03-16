@@ -14,14 +14,18 @@ import { printTerminalReport, exportReport, printWelcomeUI } from './reportGener
 import { Cache } from './cache';
 import { logger } from './logger';
 import { getUsageSummary } from './rateLimiter';
-import updateNotifier from 'update-notifier';
-
 let pkg: { name: string; version: string } = { name: 'stacked-cli', version: '0.0.0' };
 try {
   pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 } catch { /* use fallback version */ }
 
-updateNotifier({ pkg }).notify();
+// update-notifier v7 is ESM-only; use dynamic import to avoid CJS breakage
+(async () => {
+  try {
+    const { default: updateNotifier } = await import('update-notifier');
+    updateNotifier({ pkg }).notify();
+  } catch { /* optional, non-fatal */ }
+})();
 
 const program = new Command();
 

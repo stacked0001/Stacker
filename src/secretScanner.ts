@@ -46,6 +46,19 @@ const IGNORED_DIRS = new Set([
 
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
 
+// Patterns that are only suppressed in test files (not real secrets, just test fixtures)
+const TEST_ONLY_SUPPRESSED_TYPES = new Set(['Hardcoded Password', 'Hardcoded Secret']);
+
+// Common test/placeholder values — skip these even in non-test files
+const TEST_VALUE_PATTERNS = /test|mock|fake|dummy|example|placeholder|your-|<|>/i;
+
+function isTestFilePath(filePath: string): boolean {
+  return /\.(test|spec)\.(ts|js|tsx|jsx)$/.test(filePath) ||
+    /\/__tests__\//.test(filePath) ||
+    /\/test\//.test(filePath) ||
+    /\/tests\//.test(filePath);
+}
+
 function redactMatch(match: string): string {
   if (match.length <= 4) return '...REDACTED';
   return match.slice(0, 4) + '...REDACTED';
@@ -97,10 +110,18 @@ function scanFile(filePath: string, repoPath: string): SecretFinding[] {
       continue;
     }
 
+    const isTest = isTestFilePath(relPath);
+
     for (const { type, regex, severity } of SECRET_PATTERNS) {
+      // Skip "Hardcoded Password" and "Hardcoded Secret" patterns entirely in test files
+      if (isTest && TEST_ONLY_SUPPRESSED_TYPES.has(type)) continue;
+
       const re = new RegExp(regex.source, regex.flags);
       const m = re.exec(line);
       if (m) {
+        // Skip common test/placeholder values for password/secret patterns
+        if (TEST_ONLY_SUPPRESSED_TYPES.has(type) && TEST_VALUE_PATTERNS.test(m[0])) continue;
+
         findings.push({
           file: relPath,
           line: lineIdx + 1,
