@@ -1,0 +1,51 @@
+{
+  "name": "stacked-cli",
+  "version": "1.2.0",
+  "description": "Analyze software repositories and get AI-powered stack improvement recommendations",
+  "main": "dist/cli.js",
+  "bin": {
+    "stacker": "./bin/stacker"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test src/__tests__/**/*.test.ts"
+  },
+  "keywords": [
+    "cli",
+    "stack",
+    "analysis",
+    "ai",
+    "developer-tools",
+    "typescript",
+    "groq"
+  ],
+  "author": "Stacker Contributors",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "ora": "^7.0.1",
+    "simple-git": "^3.21.0",
+    "update-notifier": "^7.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/update-notifier": "^6.0.8",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
