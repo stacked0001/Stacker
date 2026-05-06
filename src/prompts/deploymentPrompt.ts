@@ -1,6 +1,6 @@
 // Project types where containerization/server deployment is not applicable
 const NON_SERVER_PROJECT_TYPES = new Set([
-  'CLI Tool', 'Claude Code Plugin', 'VS Code Extension', 'Library/Package',
+  'CLI Tool', 'VS Code Extension', 'Library/Package',
   'GitHub Action', 'Browser Extension', 'npm Package'
 ]);
 
@@ -28,7 +28,7 @@ Focus areas:
 CRITICAL PROJECT-TYPE RULES:
 - If the project type is a CLI Tool, Plugin, VS Code Extension, Library/Package, or GitHub Action — DO NOT suggest: Docker containerization, server hosting platforms (Vercel, Railway, Fly.io), health check endpoints, CDN setup, or horizontal scaling. These projects are not deployed as servers.
 - For CLI tools and libraries: deployment means npm publish, versioning strategy, changelog automation, and CI for testing across Node versions.
-- For VS Code Extensions and Claude Code Plugins: deployment means marketplace publishing, auto-update pipelines, and extension packaging.
+- For VS Code Extensions: deployment means marketplace publishing, auto-update pipelines, and extension packaging.
 - For GitHub Actions: deployment means action versioning, testing with act, and publishing to the Actions marketplace.
 - Only recommend infrastructure that actually applies to the specific project type.
 

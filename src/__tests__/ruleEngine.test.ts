@@ -122,4 +122,15 @@ describe('runRuleEngine()', () => {
     assert.equal(result.infoCount, manual.info);
     assert.equal(result.totalFindings, result.findings.length);
   });
+
+  it('attaches evidence to findings so reports explain why a rule fired', () => {
+    const stack = makeStack({ hasCI: false, testing: [] });
+    const result = runRuleEngine(stack, 0, 0, 10, 0);
+
+    assert.ok(result.findings.length > 0);
+    for (const finding of result.findings) {
+      assert.ok(Array.isArray(finding.evidence), `${finding.ruleId} should include evidence`);
+      assert.ok(finding.evidence.length > 0, `${finding.ruleId} should include at least one evidence item`);
+    }
+  });
 });

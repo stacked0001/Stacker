@@ -97,6 +97,9 @@ function scanFile(filePath: string, repoPath: string): SecretFinding[] {
   const content = buffer.toString('utf-8');
   const lines = content.split('\n');
   const relPath = path.relative(repoPath, filePath).replace(/\\/g, '/');
+  const isTest = isTestFilePath(relPath);
+
+  if (isTest) return findings;
 
   for (const [lineIdx, line] of lines.entries()) {
     // Skip pure comment lines (JS/TS/Python style)
@@ -110,7 +113,9 @@ function scanFile(filePath: string, repoPath: string): SecretFinding[] {
       continue;
     }
 
-    const isTest = isTestFilePath(relPath);
+    if (/\bregex\s*:/.test(trimmed) || /\bnew\s+RegExp\s*\(/.test(trimmed)) {
+      continue;
+    }
 
     for (const { type, regex, severity } of SECRET_PATTERNS) {
       // Skip "Hardcoded Password" and "Hardcoded Secret" patterns entirely in test files

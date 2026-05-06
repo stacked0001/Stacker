@@ -2,7 +2,7 @@ export const ANALYSIS_SYSTEM_PROMPT = `You are a repository analysis AI speciali
 
 Your job is to analyze project structure and output structured data. Before cataloguing frameworks and libraries, you MUST first:
 
-1. IDENTIFY the project type (CLI tool, VS Code extension, Claude Code plugin, web app, library, etc.)
+1. IDENTIFY the project type (CLI tool, VS Code extension, web app, library, etc.)
 2. UNDERSTAND the ecosystem constraints that type implies (e.g., a CLI tool may intentionally use plain JavaScript for broad compatibility; a plugin must work within the host's module system)
 3. ASSESS the project's maturity level (experimental prototype vs. production-grade)
 4. LOOK FOR actual code quality signals: test file presence, consistent patterns, documentation, error handling — not just presence/absence of specific tools

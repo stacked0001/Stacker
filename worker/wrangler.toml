@@ -5,6 +5,9 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 MIN_VERSION = "1.0.0"
+DAILY_TOKEN_LIMIT = "200"
+MAX_BODY_BYTES = "100000"
+ALLOWED_MODELS = "moonshotai/kimi-k2-instruct,openai/gpt-oss-120b,qwen/qwen3-32b,llama-3.3-70b-versatile"
 
 [[kv_namespaces]]
 binding = "TOKENS"

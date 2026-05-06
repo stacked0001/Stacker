@@ -29,15 +29,33 @@ export interface PipelineOptions {
   mode?: PipelineMode;
 }
 
+interface PipelineSpinner {
+  text: string;
+  start(text?: string): PipelineSpinner;
+  succeed(text?: string): PipelineSpinner;
+  fail(text?: string): PipelineSpinner;
+  warn(text?: string): PipelineSpinner;
+  stop(): PipelineSpinner;
+}
+
+export function shouldPrintTerminalOutput(
+  format: PipelineOptions['outputFormat'] | StackerConfig['outputFormat'] | undefined,
+  outputPath: string | undefined
+): boolean {
+  return format === 'terminal' && !outputPath;
+}
+
 export async function runPipeline(options: PipelineOptions): Promise<StackerReport> {
   const { target, config } = options;
   const mode: PipelineMode = options.mode || 'stack';
   const cache = new Cache(config.cacheDir, config.cacheEnabled);
+  const format = options.outputFormat || config.outputFormat;
+  const printTerminal = shouldPrintTerminalOutput(format, options.outputPath);
 
-  logger.configure({ verbose: config.verbose });
+  logger.configure({ verbose: printTerminal && config.verbose, level: printTerminal ? 'info' : 'warn' });
 
   // Print banner immediately — before pipeline steps
-  printBanner();
+  if (printTerminal) printBanner();
 
   // CM-6: Validate config before doing anything
   const configErrors = validateSecureConfig(config);
@@ -58,16 +76,20 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
     : mode === 'codebase' ? 'Comprehensive Codebase Pipeline'
     : 'Stack Analysis Pipeline';
 
-  console.log(chalk.bold.blue('  Stacker') + chalk.dim(` — ${modeLabel}`));
-  console.log(chalk.dim('  ' + '─'.repeat(50)));
-  console.log();
+  if (printTerminal) {
+    console.log(chalk.bold.blue('  Stacker') + chalk.dim(` — ${modeLabel}`));
+    console.log(chalk.dim('  ' + '─'.repeat(50)));
+    console.log();
+  }
 
   const extraAISteps = mode === 'codebase' ? 2 : (mode === 'security' || mode === 'deployment') ? 1 : 0;
   const totalSteps = config.skipAI ? 5 : 7 + extraAISteps;
   let step = 0;
 
   // ── Step 1: Resolve repository ─────────────────────────────────
-  const spinner = ora({ text: 'Resolving repository...', prefixText: '  ' }).start();
+  const spinner: PipelineSpinner = printTerminal
+    ? ora({ text: 'Resolving repository...', prefixText: '  ' }).start()
+    : createSilentSpinner();
   step++;
 
   let cloneResult: Awaited<ReturnType<typeof resolveRepository>>;
@@ -161,11 +183,11 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
         } catch (err) {
           if (err instanceof AuthError) {
             spinner.stop();
-            console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
+            if (printTerminal) console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
             logger.info('Continuing with rule-based analysis only.');
           } else if (err instanceof RateLimitError) {
             spinner.stop();
-            console.log('\n' + chalk.yellow(err.message) + '\n');
+            if (printTerminal) console.log('\n' + chalk.yellow(err.message) + '\n');
             logger.info('Continuing with rule-based analysis only.');
           } else {
             spinner.warn(`Analysis model failed: ${err instanceof Error ? err.message : String(err)}. Proceeding with rule-based analysis only.`);
@@ -205,11 +227,11 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
         } catch (err) {
           if (err instanceof AuthError) {
             spinner.stop();
-            console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
+            if (printTerminal) console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
             logger.info('Report will use rule-based results only.');
           } else if (err instanceof RateLimitError) {
             spinner.stop();
-            console.log('\n' + chalk.yellow(err.message) + '\n');
+            if (printTerminal) console.log('\n' + chalk.yellow(err.message) + '\n');
             logger.info('Report will use rule-based results only.');
           } else {
             spinner.warn(`Reasoning model failed: ${err instanceof Error ? err.message : String(err)}. Report will use rule-based results only.`);
@@ -257,10 +279,10 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
         } catch (err) {
           if (err instanceof AuthError) {
             spinner.stop();
-            console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
+            if (printTerminal) console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
           } else if (err instanceof RateLimitError) {
             spinner.stop();
-            console.log('\n' + chalk.yellow((err as Error).message) + '\n');
+            if (printTerminal) console.log('\n' + chalk.yellow((err as Error).message) + '\n');
           } else {
             spinner.warn(`Security analysis failed: ${err instanceof Error ? err.message : String(err)}`);
           }
@@ -299,10 +321,10 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
         } catch (err) {
           if (err instanceof AuthError) {
             spinner.stop();
-            console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
+            if (printTerminal) console.log(chalk.yellow('\n  ✘ Not authenticated. Run: stacker login\n'));
           } else if (err instanceof RateLimitError) {
             spinner.stop();
-            console.log('\n' + chalk.yellow((err as Error).message) + '\n');
+            if (printTerminal) console.log('\n' + chalk.yellow((err as Error).message) + '\n');
           } else {
             spinner.warn(`Deployment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
           }
@@ -325,9 +347,7 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
     };
 
     // ── Output ─────────────────────────────────────────────────────
-    const format = options.outputFormat || config.outputFormat;
-
-    if (format === 'terminal' || !options.outputPath) {
+    if (printTerminal) {
       if (mode === 'security' && securityFindings) {
         console.log(chalk.dim(`  Security Report  •  ${report.analyzedAt}`));
         console.log(chalk.dim(`  Repository: ${report.repoName}`));
@@ -349,6 +369,11 @@ export async function runPipeline(options: PipelineOptions): Promise<StackerRepo
       const fmt = options.outputPath.endsWith('.md') ? 'markdown' : 'json';
       exportReport(report, fmt, options.outputPath);
       logger.success(`Report saved to ${options.outputPath}`);
+    } else if (format === 'json') {
+      console.log(JSON.stringify(report, null, 2));
+    } else if (format === 'markdown') {
+      const { renderReport } = await import('./reportGenerator');
+      console.log(renderReport(report, 'markdown'));
     }
 
     return report;
@@ -380,4 +405,18 @@ async function withRetry<T>(
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function createSilentSpinner(): PipelineSpinner {
+  return {
+    text: '',
+    start(text?: string) {
+      if (text) this.text = text;
+      return this;
+    },
+    succeed() { return this; },
+    fail() { return this; },
+    warn() { return this; },
+    stop() { return this; }
+  };
 }

@@ -10,6 +10,7 @@ import { ReasoningResult } from './llm/reasoningModel';
 import { ArchitectureMap } from './architectureMapper';
 import { SecurityFindings } from './prompts/securityPrompt';
 import { DeploymentRecommendations } from './prompts/deploymentPrompt';
+import { validateOutputPath } from './security';
 
 export { SecurityFindings, DeploymentRecommendations };
 
@@ -42,6 +43,7 @@ export interface MergedSuggestion {
   effort: 'low' | 'medium' | 'high';
   severity?: 'info' | 'warning' | 'critical';
   tags?: string[];
+  evidence?: string[];
 }
 
 export function mergeResults(ruleResults: RuleEngineResult, reasoning: ReasoningResult | null): MergedSuggestion[] {
@@ -58,10 +60,11 @@ export function mergeResults(ruleResults: RuleEngineResult, reasoning: Reasoning
       reason: f.reason,
       benefit: f.benefit,
       priority: f.priority,
-      effort: f.effort,
-      severity: f.severity,
-      tags: f.tags
-    });
+        effort: f.effort,
+        severity: f.severity,
+        tags: f.tags,
+        evidence: f.evidence
+      });
   }
 
   // Add AI suggestions that don't duplicate rule findings
@@ -311,7 +314,7 @@ export function printTerminalReport(report: StackerReport): void {
 
 export function exportReport(report: StackerReport, format: 'json' | 'markdown', outputPath: string): void {
   // Security: prevent path traversal — resolve and ensure it stays within CWD or an absolute path the user explicitly provided
-  const resolved = path.resolve(outputPath);
+  const resolved = validateOutputPath(outputPath);
   const resolvedDir = path.dirname(resolved);
   try {
     fs.mkdirSync(resolvedDir, { recursive: true });
@@ -320,14 +323,18 @@ export function exportReport(report: StackerReport, format: 'json' | 'markdown',
   }
 
   if (format === 'json') {
-    fs.writeFileSync(resolved, JSON.stringify(report, null, 2), 'utf-8');
+    fs.writeFileSync(resolved, renderReport(report, 'json'), 'utf-8');
     return;
   }
 
   if (format === 'markdown') {
-    const md = generateMarkdownReport(report);
-    fs.writeFileSync(resolved, md, 'utf-8');
+    fs.writeFileSync(resolved, renderReport(report, 'markdown'), 'utf-8');
   }
+}
+
+export function renderReport(report: StackerReport, format: 'json' | 'markdown'): string {
+  if (format === 'json') return JSON.stringify(report, null, 2);
+  return generateMarkdownReport(report);
 }
 
 function generateMarkdownReport(report: StackerReport): string {
@@ -450,6 +457,9 @@ function generateMarkdownReport(report: StackerReport): string {
       lines.push(`- **Priority:** ${s.priority}`);
       lines.push(`- **Effort:** ${s.effort}`);
       lines.push(`- **Source:** ${s.source}`);
+      if (s.evidence?.length) {
+        lines.push(`- **Evidence:** ${s.evidence.join('; ')}`);
+      }
       lines.push('');
       lines.push(`**Reason:** ${s.reason}`);
       lines.push('');
@@ -594,6 +604,12 @@ function printSuggestion(index: number, s: MergedSuggestion): void {
   console.log(`     ${chalk.green('◆ Outcome')}`);
   console.log(`     ${chalk.dim('│')}  ${wrapText(s.benefit, 58, 10)}`);
   console.log();
+
+  if (s.evidence?.length) {
+    console.log(`     ${chalk.cyan('◆ Evidence')}`);
+    console.log(`     ${chalk.dim('│')}  ${chalk.dim(wrapText(s.evidence.join('; '), 58, 10))}`);
+    console.log();
+  }
 
   // ── Optional detail fields ───────────────────────────────────────
   if (s.tradeoffs) {
@@ -798,12 +814,14 @@ export function printWelcomeUI(): void {
   console.log(`  ${chalk.cyan('stacker security')} ${chalk.dim('<repo>')}       ${chalk.white('Scan for security vulnerabilities')}`);
   console.log(`  ${chalk.cyan('stacker deployment')} ${chalk.dim('<repo>')}     ${chalk.white('Get deployment recommendations')}`);
   console.log(`  ${chalk.cyan('stacker codebase')} ${chalk.dim('<repo>')}       ${chalk.white('Full comprehensive analysis')}`);
+  console.log(`  ${chalk.cyan('stacker demo')}                  ${chalk.white('Preview a sample report')}`);
   console.log();
 
   console.log(chalk.bold.blue('  EXAMPLES'));
   console.log();
   console.log(`  ${chalk.dim('stacker analyze github.com/user/repo')}`);
   console.log(`  ${chalk.dim('stacker security ./my-project')}`);
+  console.log(`  ${chalk.dim('stacker demo --format markdown')}`);
   console.log(`  ${chalk.dim('stacker codebase https://github.com/user/repo --format markdown')}`);
   console.log();
 

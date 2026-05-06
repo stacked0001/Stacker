@@ -1,0 +1,73 @@
+name: Stacker Codebase Report
+description: Run Stacker on a repository and publish a codebase health report.
+
+inputs:
+  target:
+    description: Repository path or GitHub URL to analyze.
+    required: false
+    default: .
+  output:
+    description: Report file path.
+    required: false
+    default: stacker-report.md
+  skip-ai:
+    description: Use rule-based analysis only.
+    required: false
+    default: "false"
+  comment:
+    description: Comment with the report on pull requests.
+    required: false
+    default: "true"
+  github-token:
+    description: GitHub token used for pull request comments.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Stacker
+      shell: bash
+      run: npm install -g stacked-cli@latest
+
+    - name: Run Stacker
+      shell: bash
+      env:
+        STACKER_TARGET: ${{ inputs.target }}
+        STACKER_OUTPUT: ${{ inputs.output }}
+        STACKER_SKIP_AI_INPUT: ${{ inputs.skip-ai }}
+      run: |
+        set -euo pipefail
+        args=(codebase "$STACKER_TARGET" --format markdown --output "$STACKER_OUTPUT")
+        if [ "$STACKER_SKIP_AI_INPUT" = "true" ]; then
+          args+=(--skip-ai)
+        fi
+        stacker "${args[@]}"
+
+    - name: Upload Stacker report
+      uses: actions/upload-artifact@v4
+      with:
+        name: stacker-report
+        path: ${{ inputs.output }}
+
+    - name: Comment on pull request
+      if: ${{ github.event_name == 'pull_request' && inputs.comment == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        STACKER_OUTPUT: ${{ inputs.output }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        {
+          echo "<!-- stacker-report -->"
+          echo "## Stacker Codebase Report"
+          echo
+          cat "$STACKER_OUTPUT"
+        } > stacker-pr-comment.md
+        gh pr comment "$PR_NUMBER" --body-file stacker-pr-comment.md

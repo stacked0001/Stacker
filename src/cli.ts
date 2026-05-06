@@ -14,18 +14,29 @@ import { printTerminalReport, exportReport, printWelcomeUI } from './reportGener
 import { Cache } from './cache';
 import { logger } from './logger';
 import { getUsageSummary } from './rateLimiter';
+import { getArgValue, getCommandOption, hasArgFlag } from './cliOptions';
 let pkg: { name: string; version: string } = { name: 'stacked-cli', version: '0.0.0' };
 try {
   pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 } catch { /* use fallback version */ }
 
+const requestedFormat = getArgValue(process.argv, '--format');
+const shouldCheckForUpdates =
+  process.stdout.isTTY &&
+  !process.env.CI &&
+  requestedFormat !== 'json' &&
+  requestedFormat !== 'markdown' &&
+  !process.argv.includes('--output');
+
 // update-notifier v7 is ESM-only; use dynamic import to avoid CJS breakage
-(async () => {
-  try {
-    const { default: updateNotifier } = await import('update-notifier');
-    updateNotifier({ pkg }).notify();
-  } catch { /* optional, non-fatal */ }
-})();
+if (shouldCheckForUpdates) {
+  (async () => {
+    try {
+      const { default: updateNotifier } = await import('update-notifier');
+      updateNotifier({ pkg }).notify();
+    } catch { /* optional, non-fatal */ }
+  })();
+}
 
 const program = new Command();
 
@@ -50,7 +61,7 @@ program
     const config = loadConfig();
     applyGlobalOptions(config);
 
-    if (cmdOptions.skipAi) config.skipAI = true;
+    if (getCommandOption<boolean>(cmdOptions, 'skipAi') || hasArgFlag(process.argv, '--skip-ai')) config.skipAI = true;
 
     if (validateConfig(config).length > 0) config.skipAI = true;
 
@@ -58,8 +69,8 @@ program
       await runPipeline({
         target,
         config,
-        outputPath: cmdOptions.output || program.opts().output,
-        outputFormat: cmdOptions.format || program.opts().format
+        outputPath: getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || program.opts().output,
+        outputFormat: (getArgValue(process.argv, '--format') as 'terminal' | 'json' | 'markdown' | undefined) || getCommandOption<'terminal' | 'json' | 'markdown'>(cmdOptions, 'format') || program.opts().format
       });
     } catch (err) {
       logger.error(`Analysis failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -79,15 +90,15 @@ program
     const config = loadConfig();
     applyGlobalOptions(config);
 
-    if (cmdOptions.skipAi) config.skipAI = true;
+    if (getCommandOption<boolean>(cmdOptions, 'skipAi') || hasArgFlag(process.argv, '--skip-ai')) config.skipAI = true;
     if (validateConfig(config).length > 0) config.skipAI = true;
 
     try {
       await runPipeline({
         target,
         config,
-        outputPath: cmdOptions.output || program.opts().output,
-        outputFormat: cmdOptions.format || program.opts().format,
+        outputPath: getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || program.opts().output,
+        outputFormat: (getArgValue(process.argv, '--format') as 'terminal' | 'json' | 'markdown' | undefined) || getCommandOption<'terminal' | 'json' | 'markdown'>(cmdOptions, 'format') || program.opts().format,
         mode: 'security'
       });
     } catch (err) {
@@ -108,15 +119,15 @@ program
     const config = loadConfig();
     applyGlobalOptions(config);
 
-    if (cmdOptions.skipAi) config.skipAI = true;
+    if (getCommandOption<boolean>(cmdOptions, 'skipAi') || hasArgFlag(process.argv, '--skip-ai')) config.skipAI = true;
     if (validateConfig(config).length > 0) config.skipAI = true;
 
     try {
       await runPipeline({
         target,
         config,
-        outputPath: cmdOptions.output || program.opts().output,
-        outputFormat: cmdOptions.format || program.opts().format,
+        outputPath: getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || program.opts().output,
+        outputFormat: (getArgValue(process.argv, '--format') as 'terminal' | 'json' | 'markdown' | undefined) || getCommandOption<'terminal' | 'json' | 'markdown'>(cmdOptions, 'format') || program.opts().format,
         mode: 'deployment'
       });
     } catch (err) {
@@ -137,15 +148,15 @@ program
     const config = loadConfig();
     applyGlobalOptions(config);
 
-    if (cmdOptions.skipAi) config.skipAI = true;
+    if (getCommandOption<boolean>(cmdOptions, 'skipAi') || hasArgFlag(process.argv, '--skip-ai')) config.skipAI = true;
     if (validateConfig(config).length > 0) config.skipAI = true;
 
     try {
       await runPipeline({
         target,
         config,
-        outputPath: cmdOptions.output || program.opts().output,
-        outputFormat: cmdOptions.format || program.opts().format,
+        outputPath: getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || program.opts().output,
+        outputFormat: (getArgValue(process.argv, '--format') as 'terminal' | 'json' | 'markdown' | undefined) || getCommandOption<'terminal' | 'json' | 'markdown'>(cmdOptions, 'format') || program.opts().format,
         mode: 'codebase'
       });
     } catch (err) {
@@ -164,7 +175,7 @@ program
   .action(async (target = '.', cmdOptions) => {
     const config = loadConfig();
     applyGlobalOptions(config);
-    if (cmdOptions.skipAi) config.skipAI = true;
+    if (getCommandOption<boolean>(cmdOptions, 'skipAi') || hasArgFlag(process.argv, '--skip-ai')) config.skipAI = true;
 
     if (validateConfig(config).length > 0) config.skipAI = true;
 
@@ -172,7 +183,7 @@ program
       await runPipeline({
         target,
         config,
-        outputPath: cmdOptions.output || program.opts().output
+        outputPath: getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || program.opts().output
       });
     } catch (err) {
       logger.error(`Suggestion failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -190,7 +201,8 @@ program
     const config = loadConfig();
     applyGlobalOptions(config);
 
-    const outputPath = cmdOptions.output || `stacker-report.${cmdOptions.format === 'json' ? 'json' : 'md'}`;
+    const reportFormat = getArgValue(process.argv, '--format') || getCommandOption<string>(cmdOptions, 'format') || 'markdown';
+    const outputPath = getArgValue(process.argv, '--output') || getCommandOption<string>(cmdOptions, 'output') || `stacker-report.${reportFormat === 'json' ? 'json' : 'md'}`;
 
     if (validateConfig(config).length > 0) config.skipAI = true;
 
@@ -200,6 +212,26 @@ program
     } catch (err) {
       logger.error(`Report generation failed: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
+    }
+  });
+
+// ── stacker demo ─────────────────────────────────────────────────
+program
+  .command('demo')
+  .description('Show a sample codebase report without scanning a repository')
+  .option('--format <format>', 'Output format: terminal | json | markdown', 'terminal')
+  .action(async (cmdOptions) => {
+    const { createDemoReport } = await import('./demoReport');
+    const { renderReport, printCodebaseReport } = await import('./reportGenerator');
+    const format = getArgValue(process.argv, '--format') || getCommandOption<string>(cmdOptions, 'format') || program.opts().format || 'terminal';
+    const report = createDemoReport();
+
+    if (format === 'json') {
+      console.log(renderReport(report, 'json'));
+    } else if (format === 'markdown') {
+      console.log(renderReport(report, 'markdown'));
+    } else {
+      printCodebaseReport(report);
     }
   });
 

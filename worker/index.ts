@@ -9,11 +9,22 @@ export interface Env {
   ANTHROPIC_API_KEY: string;
   MIN_VERSION: string;
   ADMIN_SECRET: string;
+  DAILY_TOKEN_LIMIT?: string;
+  MAX_BODY_BYTES?: string;
+  ALLOWED_MODELS?: string;
 }
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const DEFAULT_MIN_VERSION = '1.0.0';
+const DEFAULT_DAILY_TOKEN_LIMIT = 200;
+const DEFAULT_MAX_BODY_BYTES = 100_000;
+const DEFAULT_ALLOWED_MODELS = new Set([
+  'moonshotai/kimi-k2-instruct',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3-32b',
+  'llama-3.3-70b-versatile'
+]);
 
 // Block browser-originated requests
 const BROWSER_AGENTS = ['Mozilla/', 'Chrome/', 'Safari/', 'Firefox/'];
@@ -80,7 +91,7 @@ export default {
     // Version enforcement
     const minVersion = env.MIN_VERSION ?? DEFAULT_MIN_VERSION;
     if (!isVersionAtLeast(version, minVersion)) {
-      return json({ error: `Client version ${version} is outdated. Minimum: ${minVersion}. Run: npm install -g stacker-cli` }, 426);
+      return json({ error: `Client version ${version} is outdated. Minimum: ${minVersion}. Run: npm install -g stacked-cli` }, 426);
     }
 
     // Signature + timestamp verification (prevents replay attacks)
@@ -105,6 +116,22 @@ export default {
       );
     }
 
+    const dailyLimit = parsePositiveInt(env.DAILY_TOKEN_LIMIT, DEFAULT_DAILY_TOKEN_LIMIT);
+    const dailyLimitResult = await checkDailyTokenLimit(token, env, dailyLimit);
+    if (!dailyLimitResult.allowed) {
+      return json(
+        { error: 'Daily free-tier limit reached. Try again tomorrow or run with --skip-ai.' },
+        429,
+        { 'Retry-After': String(dailyLimitResult.retryAfter) }
+      );
+    }
+
+    const maxBodyBytes = parsePositiveInt(env.MAX_BODY_BYTES, DEFAULT_MAX_BODY_BYTES);
+    const contentLength = Number(request.headers.get('content-length') ?? '0');
+    if (contentLength > maxBodyBytes) {
+      return json({ error: `Request body too large. Maximum: ${maxBodyBytes} bytes.` }, 413);
+    }
+
     // Parse request body
     let body: Record<string, unknown>;
     try {
@@ -114,6 +141,11 @@ export default {
     }
 
     const provider = typeof body.provider === 'string' ? body.provider : 'groq';
+    const model = typeof body.model === 'string' ? body.model : '';
+    if (!isAllowedModel(model, env)) {
+      return json({ error: `Model is not enabled for this Stacker deployment: ${model || 'missing'}` }, 400);
+    }
+
     return forwardToProvider(provider, body, env);
   }
 };
@@ -359,4 +391,42 @@ function isVersionAtLeast(version: string, minimum: string): boolean {
   if (ma !== mma) return ma > mma;
   if (mi !== mmi) return mi > mmi;
   return pa >= mpa;
+}
+
+async function checkDailyTokenLimit(
+  token: string,
+  env: Env,
+  limit: number
+): Promise<{ allowed: boolean; retryAfter: number }> {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const key = `usage-token:${token}:${day}`;
+  const current = parseInt(await env.TOKENS.get(key) ?? '0', 10);
+
+  if (current >= limit) {
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return {
+      allowed: false,
+      retryAfter: Math.max(60, Math.ceil((tomorrow.getTime() - now.getTime()) / 1000))
+    };
+  }
+
+  await env.TOKENS.put(key, String(current + 1), { expirationTtl: 172800 });
+  return { allowed: true, retryAfter: 0 };
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function isAllowedModel(model: string, env: Env): boolean {
+  if (!model) return false;
+  const configured = env.ALLOWED_MODELS
+    ?.split(',')
+    .map(m => m.trim())
+    .filter(Boolean);
+  const allowed = configured?.length ? new Set(configured) : DEFAULT_ALLOWED_MODELS;
+  return allowed.has(model);
 }

@@ -73,7 +73,7 @@ export async function callProxy(req: ProxyRequest, timeout = 30000): Promise<Pro
         'x-ptai-timestamp': String(timestamp),
         'x-ptai-signature': signature,
         'Content-Type': 'application/json',
-        'User-Agent': `stacker-cli/${pkg.version}`
+        'User-Agent': `stacked-cli/${pkg.version}`
       },
       httpsAgent,
       timeout
@@ -86,7 +86,7 @@ export async function callProxy(req: ProxyRequest, timeout = 30000): Promise<Pro
 
     if (status === 401) throw new AuthError('Session expired. Run: stacker login');
     if (status === 429) throw new Error('Rate limit exceeded. Please try again shortly.');
-    if (status === 426) throw new Error('Stacker is outdated. Run: npm install -g stacker-cli');
+    if (status === 426) throw new Error('Stacker is outdated. Run: npm install -g stacked-cli');
     throw new Error(`Request failed: ${detail}`);
   }
 }

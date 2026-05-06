@@ -217,4 +217,31 @@ describe('scanSecrets()', () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('does NOT flag credential-looking fixtures in test files', () => {
+    const dir = makeTempDir();
+    try {
+      const testDir = path.join(dir, '__tests__');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.writeFileSync(path.join(testDir, 'fixtures.test.ts'), `const key = "AKIAIOSFODNN7EXAMPLE";\n`);
+      const result = scanSecrets(dir);
+      assert.equal(result.findings.length, 0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT flag scanner regex definitions as live risky code', () => {
+    const dir = makeTempDir();
+    try {
+      fs.writeFileSync(
+        path.join(dir, 'scanner.ts'),
+        `const patterns = [{ type: "eval() usage", regex: /\\beval\\s*\\(/ }];\n`
+      );
+      const result = scanSecrets(dir);
+      assert.equal(result.findings.length, 0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

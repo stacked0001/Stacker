@@ -4,6 +4,7 @@ export interface RuleFinding {
   ruleId: string;
   category: string;
   severity: 'info' | 'warning' | 'critical';
+  evidence: string[];
   current: string;
   suggested: string;
   reason: string;
@@ -29,7 +30,8 @@ interface RuleContext {
   testFileCount: number;
 }
 
-type Rule = (ctx: RuleContext) => RuleFinding | null;
+type RawRuleFinding = Omit<RuleFinding, 'evidence'> & { evidence?: string[] };
+type Rule = (ctx: RuleContext) => RawRuleFinding | null;
 
 const RULES: Rule[] = [
   // --- Backend rules ---
@@ -316,7 +318,12 @@ export function runRuleEngine(
 
   for (const rule of RULES) {
     const finding = rule(ctx);
-    if (finding) findings.push(finding);
+    if (finding) {
+      findings.push({
+        ...finding,
+        evidence: finding.evidence?.length ? finding.evidence : buildEvidence(ctx, finding)
+      });
+    }
   }
 
   const criticalCount = findings.filter(f => f.severity === 'critical').length;
@@ -334,8 +341,67 @@ export function formatRuleFindingsForLLM(result: RuleEngineResult): string {
   if (result.findings.length === 0) return 'No rule-based findings.';
 
   return result.findings
-    .map(f =>
-      `[${f.severity.toUpperCase()}] ${f.category}: ${f.current} → ${f.suggested}\nReason: ${f.reason}\nBenefit: ${f.benefit}`
-    )
+    .map(f => [
+      `[${f.severity.toUpperCase()}] ${f.category}: ${f.current} -> ${f.suggested}`,
+      `Evidence: ${f.evidence.join('; ')}`,
+      `Reason: ${f.reason}`,
+      `Benefit: ${f.benefit}`
+    ].join('\n'))
     .join('\n\n');
+}
+
+function buildEvidence(ctx: RuleContext, finding: RawRuleFinding): string[] {
+  const { stack } = ctx;
+  const list = (items: string[]) => items.length ? items.join(', ') : 'none detected';
+
+  switch (finding.category) {
+    case 'Testing':
+      return [
+        `Test files detected: ${ctx.testFileCount}`,
+        `Testing frameworks detected: ${list(stack.testing)}`
+      ];
+    case 'CI/CD':
+      return [`CI/CD configuration detected: ${stack.hasCI ? 'yes' : 'no'}`];
+    case 'Infrastructure':
+      return [
+        `Docker configuration detected: ${stack.hasDocker ? 'yes' : 'no'}`,
+        `Backend frameworks detected: ${list(stack.backend)}`
+      ];
+    case 'Backend Framework':
+      return [
+        `Backend frameworks detected: ${list(stack.backend)}`,
+        `API routes detected: ${ctx.apiRouteCount}`,
+        `TypeScript detected: ${stack.hasTypeScript ? 'yes' : 'no'}`
+      ];
+    case 'Database Access':
+      return [`Database and ORM libraries detected: ${list(stack.databases)}`];
+    case 'Styling System':
+      return [
+        `Styling systems detected: ${list(stack.styling)}`,
+        `Components detected: ${ctx.componentCount}`
+      ];
+    case 'Build Tool':
+      return [`Build tools detected: ${list(stack.buildTools)}`];
+    case 'Package Manager':
+      return [
+        `Package manager detected: ${stack.packageManager ?? 'none detected'}`,
+        `Development dependencies detected: ${stack.devDependencies.length}`
+      ];
+    case 'Frontend Framework':
+      return [
+        `Frontend frameworks detected: ${list(stack.frontend)}`,
+        `Dependencies detected: ${list(stack.dependencies)}`
+      ];
+    case 'Language':
+      return [
+        `Primary language detected: ${stack.language}`,
+        `TypeScript detected: ${stack.hasTypeScript ? 'yes' : 'no'}`,
+        `Files detected: ${ctx.fileCount}`
+      ];
+    default:
+      return [
+        `Project type: ${stack.projectType}`,
+        `Primary language: ${stack.language}`
+      ];
+  }
 }

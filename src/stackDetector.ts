@@ -236,15 +236,6 @@ function detectGoStack(repoPath: string, stack: DetectedStack): void {
 }
 
 function detectSpecializedProjectType(repoPath: string, pkg: Record<string, unknown>, allDeps: string[]): string | null {
-  // Claude Code Plugin
-  if (
-    fs.existsSync(path.join(repoPath, '.claude')) ||
-    fs.existsSync(path.join(repoPath, 'CLAUDE.md')) ||
-    allDeps.includes('@anthropic-ai/claude-code')
-  ) {
-    return 'Claude Code Plugin';
-  }
-
   // VS Code Extension
   const engines = pkg.engines as Record<string, unknown> | undefined;
   if (

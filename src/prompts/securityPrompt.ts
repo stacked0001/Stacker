@@ -1,6 +1,6 @@
 // Project types that do NOT serve HTTP traffic and should not get web-server security findings
 const NON_HTTP_PROJECT_TYPES = new Set([
-  'CLI Tool', 'Claude Code Plugin', 'VS Code Extension', 'Library/Package',
+  'CLI Tool', 'VS Code Extension', 'Library/Package',
   'GitHub Action', 'Browser Extension', 'npm Package'
 ]);
 
